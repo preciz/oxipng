@@ -25,7 +25,8 @@ defmodule Oxipng.MixProject do
 
   defp deps do
     [
-      {:rustler, "~> 0.38.0"},
+      {:rustler, "~> 0.38.0", optional: true},
+      {:rustler_precompiled, "~> 0.9.0"},
       {:ex_doc, "~> 0.40.4", only: :dev, runtime: false}
     ]
   end
@@ -40,13 +41,15 @@ defmodule Oxipng.MixProject do
       links: %{"GitHub" => @source_url},
       files: [
         "lib",
+        "native/oxipng_nif/.cargo",
         "native/oxipng_nif/src",
         "native/oxipng_nif/Cargo.toml",
         "native/oxipng_nif/README.md",
         "Cargo.toml",
         "mix.exs",
         "README.md",
-        "LICENSE"
+        "LICENSE",
+        "checksum-*.exs"
       ]
     ]
   end

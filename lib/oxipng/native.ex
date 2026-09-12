@@ -1,9 +1,21 @@
 defmodule Oxipng.Native do
   @moduledoc false
 
-  use Rustler,
+  version = Mix.Project.config()[:version]
+
+  base_url =
+    Application.compile_env(
+      :oxipng,
+      :base_url,
+      "https://github.com/oxipng/oxipng_elixir/releases/download/v#{version}"
+    )
+
+  use RustlerPrecompiled,
     otp_app: :oxipng,
-    crate: "oxipng_nif"
+    crate: "oxipng_nif",
+    base_url: base_url,
+    force_build: System.get_env("OXIPNG_BUILD") in ["1", "true"] or Mix.env() in [:dev, :test],
+    version: version
 
   def optimize(_data, _opts), do: :erlang.nif_error(:nif_not_loaded)
 

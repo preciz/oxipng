@@ -20,7 +20,15 @@ def deps do
 end
 ```
 
-Rust (Cargo) is required to compile the native NIF during build time.
+By default, precompiled NIF binaries are automatically downloaded from GitHub Releases by `rustler_precompiled` for supported platforms (Linux, macOS, Windows on x86_64 and ARM64). No Rust toolchain is required on end-user machines.
+
+If you are on an unsupported platform or prefer compiling from source, set the environment variable:
+
+```bash
+export OXIPNG_BUILD=true
+```
+
+and ensure `cargo` and `rustc` are available.
 
 ## Features
 

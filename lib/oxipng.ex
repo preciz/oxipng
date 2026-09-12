@@ -180,17 +180,17 @@ defmodule Oxipng do
       )
 
   def create_optimized_from_raw(data, width, height, color_type, bit_depth, opts)
-      when is_binary(data) and is_integer(width) and width > 0 and is_integer(height) and
-             height > 0 do
+      when is_binary(data) and is_integer(width) and width in 1..2_147_483_647 and
+             is_integer(height) and height in 1..2_147_483_647 and bit_depth in [1, 2, 4, 8, 16] do
     with {:ok, options} <- Options.new(opts) do
       nif_opts = Options.to_nif_map(options)
       Native.create_optimized_from_raw(data, width, height, color_type, bit_depth, nif_opts)
     end
   end
 
-  def create_optimized_from_raw(data, width, height, _color_type, _bit_depth, _opts) do
+  def create_optimized_from_raw(data, width, height, _color_type, bit_depth, _opts) do
     {:error,
-     "Invalid parameters for create_optimized_from_raw: data=#{inspect(is_binary(data))}, width=#{inspect(width)}, height=#{inspect(height)}"}
+     "Invalid parameters for create_optimized_from_raw: data must be binary (#{inspect(is_binary(data))}), width and height must be integers from 1 to 2147483647 (#{inspect(width)}, #{inspect(height)}), bit depth must be 1, 2, 4, 8, or 16 (#{inspect(bit_depth)})"}
   end
 
   @doc """

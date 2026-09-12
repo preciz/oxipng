@@ -374,8 +374,13 @@ fn parse_color_type(term: Term) -> Result<oxipng::ColorType, String> {
             if slice.len() % 4 != 0 {
                 return Err("Indexed palette data must be a multiple of 4 bytes (RGBA)".to_string());
             }
+            if slice.is_empty() || slice.len() > 256 * 4 {
+                return Err("Indexed palettes must contain between 1 and 256 RGBA entries".into());
+            }
             let palette: Vec<rgb::RGBA8> = slice
-                .chunks_exact(4)
+                .as_chunks::<4>()
+                .0
+                .iter()
                 .map(|c| rgb::RGBA8::new(c[0], c[1], c[2], c[3]))
                 .collect();
             return Ok(oxipng::ColorType::Indexed { palette });
@@ -456,6 +461,7 @@ fn create_optimized_from_raw<'a>(
     let opts = parse_options(opts_term)?;
     let color_type = parse_color_type(color_type_term)?;
     let depth = parse_bit_depth(bit_depth)?;
+    validate_raw(data.as_slice(), width, height, &color_type, bit_depth)?;
 
     let raw_image = RawImage::new(width, height, color_type, depth, data.as_slice().to_vec())
         .map_err(|e| e.to_string())?;
@@ -465,6 +471,63 @@ fn create_optimized_from_raw<'a>(
         .map_err(|e| e.to_string())?;
 
     output_binary(env, &optimized)
+}
+
+fn validate_raw(
+    data: &[u8],
+    width: u32,
+    height: u32,
+    color: &oxipng::ColorType,
+    depth: u8,
+) -> Result<(), String> {
+    if width == 0 || height == 0 || width > i32::MAX as u32 || height > i32::MAX as u32 {
+        return Err("Image dimensions must be between 1 and 2147483647".into());
+    }
+    let valid_depth = match color {
+        oxipng::ColorType::Grayscale { .. } => true,
+        oxipng::ColorType::Indexed { palette } => depth <= 8 && palette.len() <= (1 << depth),
+        _ => depth >= 8,
+    };
+    if !valid_depth {
+        return Err("Invalid bit depth for the color type or palette size".into());
+    }
+    let channels = match color {
+        oxipng::ColorType::RGBA => 4,
+        oxipng::ColorType::RGB { .. } => 3,
+        oxipng::ColorType::GrayscaleAlpha => 2,
+        _ => 1,
+    };
+    let row_bytes = (width as usize)
+        .checked_mul(channels)
+        .and_then(|n| n.checked_mul(depth as usize))
+        .and_then(|n| n.checked_add(7))
+        .map(|n| n / 8)
+        .ok_or("Image row size exceeds the supported range")?;
+    let expected = row_bytes
+        .checked_mul(height as usize)
+        .ok_or("Image size exceeds the supported range")?;
+    if data.len() != expected {
+        return Err(format!(
+            "Data length {} does not match the expected length {expected}",
+            data.len()
+        ));
+    }
+    if let oxipng::ColorType::Indexed { palette } = color {
+        let mask = (1u16 << depth) - 1;
+        for row in data.chunks_exact(row_bytes) {
+            for x in 0..width as usize {
+                let bit = x * depth as usize;
+                let index = (row[bit / 8] >> (8 - depth as usize - bit % 8)) as u16 & mask;
+                if index as usize >= palette.len() {
+                    return Err(format!(
+                        "Pixel index {index} is outside the {}-entry palette",
+                        palette.len()
+                    ));
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 #[rustler::nif]

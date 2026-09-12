@@ -57,7 +57,7 @@ raw_rgba = <<255, 0, 0, 255, 0, 255, 0, 255>>
 {:ok, png} = Oxipng.create_optimized_from_raw(raw_rgba, 2, 1, :rgba, 8)
 ```
 
-Color types are `:rgba`, `:rgb`, `:grayscale`, `:grayscale_alpha`, and `{:indexed, palette_binary}`. Palettes contain RGBA entries of four bytes each.
+Color types are `:rgba`, `:rgb`, `:grayscale`, `:grayscale_alpha`, and `{:indexed, palette_binary}`. Palettes contain 1–256 RGBA entries of four bytes each, must fit the bit depth, and must define every pixel index.
 
 Grayscale supports bit depths 1, 2, 4, 8, and 16; indexed images support 1, 2, 4, and 8; other types support 8 and 16. Pack each row into whole bytes for depths below 8. Use big-endian samples for 16-bit data.
 

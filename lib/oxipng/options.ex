@@ -257,14 +257,14 @@ defmodule Oxipng.Options do
     palette_reduction grayscale_reduction idat_recoding scale_16 force fix_errors preserve_attrs)a
   @max_u64 18_446_744_073_709_551_615
 
-  defp validate_flags(opts) do
+  defp validate_flags(%{fast_evaluation: fast_evaluation} = opts) do
     case Enum.find(@boolean_options, &(not is_boolean(Map.fetch!(opts, &1)))) do
       nil ->
-        if opts.fast_evaluation in [nil, true, false] do
+        if is_nil(fast_evaluation) or is_boolean(fast_evaluation) do
           :ok
         else
           {:error,
-           "Invalid :fast_evaluation option #{inspect(opts.fast_evaluation)}. Expected nil or a boolean"}
+           "Invalid :fast_evaluation option #{inspect(fast_evaluation)}. Expected nil or a boolean"}
         end
 
       key ->

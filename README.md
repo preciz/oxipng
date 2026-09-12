@@ -1,5 +1,6 @@
 # Oxipng
 
+[![CI](https://github.com/preciz/oxipng/actions/workflows/ci.yml/badge.svg)](https://github.com/preciz/oxipng/actions/workflows/ci.yml)
 [![Hex.pm](https://img.shields.io/hexpm/v/oxipng.svg)](https://hex.pm/packages/oxipng)
 [![Documentation](https://img.shields.io/badge/docs-hexpm-blue.svg)](https://hexdocs.pm/oxipng)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)

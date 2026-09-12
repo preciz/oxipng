@@ -292,9 +292,109 @@ defmodule OxipngTest do
       assert reason =~ "Invalid :timeout"
     end
 
+    test "rejects invalid boolean options" do
+      assert {:error, reason} = Oxipng.Options.new(optimize_alpha: "yes")
+      assert reason =~ "Invalid :optimize_alpha"
+
+      assert {:error, reason} = Oxipng.Options.new(bit_depth_reduction: "yes")
+      assert reason =~ "Invalid :bit_depth_reduction"
+
+      assert {:error, reason} = Oxipng.Options.new(color_type_reduction: "yes")
+      assert reason =~ "Invalid :color_type_reduction"
+
+      assert {:error, reason} = Oxipng.Options.new(palette_reduction: "yes")
+      assert reason =~ "Invalid :palette_reduction"
+
+      assert {:error, reason} = Oxipng.Options.new(grayscale_reduction: "yes")
+      assert reason =~ "Invalid :grayscale_reduction"
+
+      assert {:error, reason} = Oxipng.Options.new(idat_recoding: "yes")
+      assert reason =~ "Invalid :idat_recoding"
+
+      assert {:error, reason} = Oxipng.Options.new(scale_16: "yes")
+      assert reason =~ "Invalid :scale_16"
+
+      assert {:error, reason} = Oxipng.Options.new(fast_evaluation: "yes")
+      assert reason =~ "Invalid :fast_evaluation"
+
+      assert {:error, reason} = Oxipng.Options.new(force: "yes")
+      assert reason =~ "Invalid :force"
+
+      assert {:error, reason} = Oxipng.Options.new(fix_errors: "yes")
+      assert reason =~ "Invalid :fix_errors"
+
+      assert {:error, reason} = Oxipng.Options.new(preserve_attrs: "yes")
+      assert reason =~ "Invalid :preserve_attrs"
+    end
+
+    test "rejects invalid max_decompressed_size" do
+      assert {:error, reason} = Oxipng.Options.new(max_decompressed_size: -10)
+      assert reason =~ "Invalid :max_decompressed_size"
+    end
+
+    test "rejects invalid filters" do
+      assert {:error, reason} = Oxipng.Options.new(filters: :not_a_list)
+      assert reason =~ "Invalid :filters"
+
+      assert {:error, reason} = Oxipng.Options.new(filters: [:not_a_filter])
+      assert reason =~ "Invalid :filters"
+
+      assert {:error, reason} = Oxipng.Options.new(filters: [{:brute, 0, 1}])
+      assert reason =~ "Invalid :filters"
+
+      assert {:error, reason} = Oxipng.Options.new(filters: [{:brute, 2, 13}])
+      assert reason =~ "Invalid :filters"
+    end
+
+    test "rejects non-binary/atom chunk names" do
+      assert {:error, reason} = Oxipng.Options.new(strip: {:strip, [1234]})
+      assert reason =~ "Invalid :strip"
+    end
+
+    test "rejects non-map/list argument to Options.new" do
+      assert {:error, reason} = Oxipng.Options.new(12345)
+      assert reason =~ "Options must be a keyword list or map"
+
+      assert_raise ArgumentError, ~r/Options must be a keyword list or map/, fn ->
+        apply(Oxipng.Options, :new!, [12345])
+      end
+    end
+
+    test "rejects invalid deflater with zero iterations_without_improvement" do
+      assert {:error, reason} = Oxipng.Options.new(deflater: {:zopfli, 5, 0})
+      assert reason =~ "Invalid :deflater"
+    end
+
+    test "to_nif_map converts boolean strip and :keep interlace" do
+      opts = Oxipng.Options.new!(strip: false, interlace: :keep)
+      map = Oxipng.Options.to_nif_map(opts)
+      assert map.strip == :none
+      assert map.interlace == nil
+    end
+
     test "accepts valid struct and keyword list" do
       assert {:ok, %Oxipng.Options{level: 4}} = Oxipng.Options.new(level: 4)
       assert %Oxipng.Options{level: 3} = Oxipng.Options.new!(level: 3)
+    end
+  end
+
+  describe "create_optimized_from_raw error branches" do
+    test "returns error on invalid width or height or data type" do
+      assert {:error, reason} = Oxipng.create_optimized_from_raw(123, 10, 10)
+      assert reason =~ "Invalid parameters"
+
+      assert {:error, reason} = Oxipng.create_optimized_from_raw(<<0::size(32)>>, -1, 1)
+      assert reason =~ "Invalid parameters"
+
+      assert {:error, reason} = Oxipng.create_optimized_from_raw(<<0::size(32)>>, 1, 0)
+      assert reason =~ "Invalid parameters"
+    end
+
+    test "returns error when invalid options passed" do
+      assert {:error, reason} =
+               Oxipng.create_optimized_from_raw(<<0::size(32)>>, 1, 1, :rgba, 8, level: 99)
+
+      assert reason =~ "Invalid :level"
     end
   end
 end

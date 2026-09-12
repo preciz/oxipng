@@ -135,7 +135,7 @@ defmodule Oxipng.Options do
   @doc """
   Builds and validates an `%Oxipng.Options{}` struct from a keyword list or map.
   """
-  @spec new(keyword() | map() | t()) :: {:ok, t()} | {:error, String.t()}
+  @spec new(term()) :: {:ok, t()} | {:error, String.t()}
   def new(%__MODULE__{} = opts), do: validate(opts)
 
   def new(opts) when is_list(opts) or is_map(opts) do
@@ -150,7 +150,7 @@ defmodule Oxipng.Options do
   @doc """
   Same as `new/1` but raises `ArgumentError` on invalid options.
   """
-  @spec new!(keyword() | map() | t()) :: t()
+  @spec new!(term()) :: t()
   def new!(opts) do
     case new(opts) do
       {:ok, validated} -> validated

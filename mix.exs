@@ -13,7 +13,11 @@ defmodule Oxipng.MixProject do
       deps: deps(),
       description: description(),
       package: package(),
-      docs: docs()
+      docs: docs(),
+      test_coverage: [
+        summary: [threshold: 90],
+        ignore_modules: [Oxipng.Native]
+      ]
     ]
   end
 

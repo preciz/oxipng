@@ -43,6 +43,7 @@ defmodule Oxipng.MixProject do
 
   defp package do
     [
+      maintainers: ["Barna Kovacs"],
       licenses: ["MIT"],
       links: %{"GitHub" => @source_url},
       files: [
@@ -64,6 +65,7 @@ defmodule Oxipng.MixProject do
     [
       main: "Oxipng",
       source_url: @source_url,
+      authors: ["Barna Kovacs"],
       extras: ["README.md"]
     ]
   end

@@ -16,7 +16,7 @@ defmodule Oxipng.Native do
     otp_app: :oxipng,
     crate: "oxipng_nif",
     base_url: base_url,
-    force_build: System.get_env("OXIPNG_BUILD") in ["1", "true"] or Mix.env() in [:dev, :test],
+    force_build: System.get_env("OXIPNG_BUILD") in ["1", "true"],
     version: version,
     targets: @targets
 

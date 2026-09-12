@@ -10,12 +10,15 @@ defmodule Oxipng.Native do
       "https://github.com/preciz/oxipng/releases/download/v#{version}"
     )
 
+  @targets RustlerPrecompiled.Config.default_targets() -- ["riscv64gc-unknown-linux-gnu"]
+
   use RustlerPrecompiled,
     otp_app: :oxipng,
     crate: "oxipng_nif",
     base_url: base_url,
     force_build: System.get_env("OXIPNG_BUILD") in ["1", "true"] or Mix.env() in [:dev, :test],
-    version: version
+    version: version,
+    targets: @targets
 
   def optimize(_data, _opts), do: :erlang.nif_error(:nif_not_loaded)
 

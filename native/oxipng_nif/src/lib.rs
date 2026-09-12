@@ -401,9 +401,17 @@ fn optimize<'a>(env: Env<'a>, data: Binary<'a>, opts_term: Term<'a>) -> Result<B
     let optimized =
         oxipng::optimize_from_memory(data.as_slice(), &opts).map_err(|e| e.to_string())?;
 
+    // With force disabled, oxipng returns the original bytes when it cannot shrink them.
+    if !opts.force && optimized.len() >= data.len() {
+        return Ok(data);
+    }
+    output_binary(env, &optimized)
+}
+
+fn output_binary<'a>(env: Env<'a>, optimized: &[u8]) -> Result<Binary<'a>, String> {
     let mut owned = OwnedBinary::new(optimized.len())
         .ok_or_else(|| "Failed to allocate memory for optimized image".to_string())?;
-    owned.as_mut_slice().copy_from_slice(&optimized);
+    owned.as_mut_slice().copy_from_slice(optimized);
     Ok(owned.release(env))
 }
 
@@ -453,10 +461,7 @@ fn create_optimized_from_raw<'a>(
         .create_optimized_png(&opts)
         .map_err(|e| e.to_string())?;
 
-    let mut owned = OwnedBinary::new(optimized.len())
-        .ok_or_else(|| "Failed to allocate memory for raw optimized image".to_string())?;
-    owned.as_mut_slice().copy_from_slice(&optimized);
-    Ok(owned.release(env))
+    output_binary(env, &optimized)
 }
 
 #[rustler::nif]

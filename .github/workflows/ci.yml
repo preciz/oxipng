@@ -10,6 +10,8 @@ jobs:
   test:
     name: Test (Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }})
     runs-on: ubuntu-latest
+    env:
+      OXIPNG_BUILD: "true"
     strategy:
       matrix:
         elixir: ['1.18', '1.19', '1.20']
@@ -48,6 +50,23 @@ jobs:
         run: mix format --check-formatted
 
       - name: Run tests
-        run: mix test
-        env:
-          OXIPNG_BUILD: "true"
+        run: mix test --cover
+
+      - name: Check Elixir code
+        run: mix credo --strict
+
+      - name: Check native code
+        if: matrix.elixir == '1.18' && matrix.otp == '27.0'
+        working-directory: native/oxipng_nif
+        run: |
+          cargo fmt --check
+          cargo test --locked
+          cargo clippy --locked --all-targets -- -D warnings
+
+      - name: Check pixel integrity with libpng
+        if: matrix.elixir == '1.18' && matrix.otp == '27.0'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpng-dev
+          cc -O2 test/support/decode_png.c $(pkg-config --cflags --libs libpng) -o /tmp/oxipng-decode
+          OXIPNG_TEST_DECODER=/tmp/oxipng-decode mix test --only libpng

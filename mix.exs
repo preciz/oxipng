@@ -2,7 +2,7 @@ defmodule Oxipng.MixProject do
   use Mix.Project
 
   @version "0.1.0"
-  @source_url "https://github.com/oxipng/oxipng"
+  @source_url "https://github.com/preciz/oxipng"
 
   def project do
     [

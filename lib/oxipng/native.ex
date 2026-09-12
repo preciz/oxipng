@@ -7,7 +7,7 @@ defmodule Oxipng.Native do
     Application.compile_env(
       :oxipng,
       :base_url,
-      "https://github.com/oxipng/oxipng_elixir/releases/download/v#{version}"
+      "https://github.com/preciz/oxipng/releases/download/v#{version}"
     )
 
   use RustlerPrecompiled,

@@ -522,7 +522,7 @@ fn validate_raw(
 
 #[rustler::nif]
 fn version() -> &'static str {
-    "10.2.1"
+    env!("OXIPNG_VERSION")
 }
 
 rustler::init!("Elixir.Oxipng.Native");

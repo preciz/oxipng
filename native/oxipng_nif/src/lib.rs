@@ -1,13 +1,12 @@
 use std::num::NonZeroU64;
-use std::path::PathBuf;
+use std::path::Path;
 use std::time::Duration;
 
 use indexmap::IndexSet;
-use oxipng::{
-    Deflater, FilterStrategy, InFile, Options, OutFile, RawImage, RowFilter, StripChunks,
-    ZopfliOptions,
-};
+use oxipng::{Deflater, FilterStrategy, Options, RawImage, RowFilter, StripChunks, ZopfliOptions};
 use rustler::{types::atom, Binary, Env, OwnedBinary, Term};
+
+mod files;
 
 mod atoms {
     rustler::atoms! {
@@ -431,21 +430,12 @@ fn optimize_file(
     opts_term: Term<'_>,
 ) -> Result<(usize, usize), String> {
     let opts = parse_options(opts_term)?;
-    let input = InFile::Path(PathBuf::from(&in_path));
-    let output = match out_path {
-        Some(ref p) if !p.is_empty() => OutFile::Path {
-            path: Some(PathBuf::from(p)),
-            preserve_attrs,
-        },
-        _ => OutFile::Path {
-            path: None,
-            preserve_attrs,
-        },
-    };
-
-    let result = oxipng::optimize(&input, &output, &opts).map_err(|e| e.to_string())?;
-
-    Ok(result)
+    files::optimize(
+        Path::new(&in_path),
+        out_path.as_deref().map(Path::new),
+        preserve_attrs,
+        &opts,
+    )
 }
 
 #[rustler::nif(schedule = "DirtyCpu")]

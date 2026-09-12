@@ -49,6 +49,9 @@ export OXIPNG_BUILD=true
 ```
 
 File calls return `{:ok, %{in_bytes: input_size, out_bytes: output_size}}`.
+Empty filenames are rejected. Output is written to a temporary sibling and replaces
+the destination only after a successful write. The destination directory must be
+writable. Symbolic links are followed; other hard links retain the old contents.
 
 ### Raw pixels
 

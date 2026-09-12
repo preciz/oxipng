@@ -13,3 +13,4 @@ rustler = "0.38.0"
 oxipng = { version = "10.2", default-features = false, features = ["parallel", "zopfli"] }
 indexmap = "2"
 rgb = "0.8"
+tempfile = "3.27"

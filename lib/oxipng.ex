@@ -81,6 +81,9 @@ defmodule Oxipng do
   Optimizes a PNG file on disk.
 
   If `out_path` is omitted or `nil`, the input file will be optimized in-place.
+  Empty paths are rejected. Output is written to a temporary sibling and then
+  atomically replaces the destination, so failed writes leave existing files intact.
+  Symbolic links are followed; other hard links retain the previous file contents.
 
   ## Parameters
 
@@ -104,18 +107,28 @@ defmodule Oxipng do
     do_optimize_file(in_path, out_path, opts)
   end
 
+  def optimize_file(in_path, [char | _] = out_path, opts) when is_integer(char) do
+    do_optimize_file(in_path, out_path, opts)
+  end
+
   def optimize_file(in_path, opts, []) when is_list(opts) or is_map(opts) do
     do_optimize_file(in_path, nil, opts)
   end
 
+  def optimize_file(_in_path, out_path, _opts) do
+    {:error, "Invalid output path or options: #{inspect(out_path)}"}
+  end
+
   defp do_optimize_file(in_path, out_path, opts) do
-    with {:ok, options} <- Options.new(opts) do
+    with {:ok, in_path} <- validate_path(in_path),
+         {:ok, out_path} <- validate_output_path(out_path),
+         {:ok, options} <- Options.new(opts) do
       nif_opts = Options.to_nif_map(options)
       preserve_attrs = options.preserve_attrs
 
       case Native.optimize_file(
-             to_string(in_path),
-             out_path && to_string(out_path),
+             in_path,
+             out_path,
              preserve_attrs,
              nif_opts
            ) do
@@ -127,6 +140,25 @@ defmodule Oxipng do
       end
     end
   end
+
+  defp validate_output_path(nil), do: {:ok, nil}
+  defp validate_output_path(path), do: validate_path(path)
+
+  defp validate_path(path) when is_binary(path) and byte_size(path) > 0 do
+    if String.valid?(path) and not String.contains?(path, <<0>>) do
+      {:ok, path}
+    else
+      {:error, "Paths must be valid UTF-8 without null bytes"}
+    end
+  end
+
+  defp validate_path(path) when is_list(path) do
+    path |> List.to_string() |> validate_path()
+  rescue
+    ArgumentError -> {:error, "Invalid path: #{inspect(path)}"}
+  end
+
+  defp validate_path(path), do: {:error, "Expected a non-empty path, got: #{inspect(path)}"}
 
   @doc """
   Same as `optimize_file/3`, but returns `%{in_bytes: in_bytes, out_bytes: out_bytes}`

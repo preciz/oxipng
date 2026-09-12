@@ -1,107 +1,105 @@
 # Oxipng
 
-[![CI](https://github.com/preciz/oxipng/actions/workflows/ci.yml/badge.svg)](https://github.com/preciz/oxipng/actions/workflows/ci.yml)
-[![Hex.pm](https://img.shields.io/hexpm/v/oxipng.svg)](https://hex.pm/packages/oxipng)
-[![Documentation](https://img.shields.io/badge/docs-hexpm-blue.svg)](https://hexdocs.pm/oxipng)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+Elixir bindings for [oxipng](https://github.com/oxipng/oxipng), a PNG optimizer written in Rust.
 
-An Elixir wrapper for [oxipng](https://github.com/oxipng/oxipng), a multithreaded lossless PNG compression optimizer written in Rust.
+Optimize PNG binaries and files, or encode PNGs from raw pixels. Calls are synchronous and use [Rustler](https://github.com/rusterlium/rustler) NIFs on dirty CPU schedulers. The calling process waits while normal BEAM schedulers remain available.
 
-Binding is implemented using [Rustler](https://github.com/rusterlium/rustler). Heavy compression work runs asynchronously on Erlang's **Dirty CPU schedulers**, preventing BEAM scheduler blocking.
+Compression is lossless by default. `scale_16: true` reduces precision, `optimize_alpha: true` can change hidden RGB values in transparent pixels, and stripping color metadata can affect image appearance.
 
 ## Installation
 
-Add `oxipng` to your list of dependencies in `mix.exs`:
+Add the dependency to `mix.exs`:
 
 ```elixir
-def deps do
-  [
-    {:oxipng, "~> 0.1.0"}
-  ]
-end
+{:oxipng, "~> 0.1.0"}
 ```
 
-By default, precompiled NIF binaries are automatically downloaded from GitHub Releases by `rustler_precompiled` for supported platforms (Linux, macOS, Windows on x86_64 and ARM64). No Rust toolchain is required on end-user machines.
+`rustler_precompiled` downloads NIF binaries from GitHub Releases for these platforms:
 
-If you are on an unsupported platform or prefer compiling from source, set the environment variable:
+| Platform | Architectures |
+|---|---|
+| Linux (glibc) | x86_64, ARM64, ARM32 hard-float |
+| Linux (musl) | x86_64, ARM64 |
+| macOS | x86_64, ARM64 |
+| Windows | x86_64 |
 
-```bash
+These binaries do not require Rust. To compile from source, also add `{:rustler, "~> 0.38.0"}` to your dependencies, install Rust and a C toolchain, and set this before compiling:
+
+```sh
 export OXIPNG_BUILD=true
 ```
 
-and ensure `cargo` and `rustc` are available.
-
-## Features
-
-- 🚀 **Lossless in-memory compression**: Optimize PNG binaries directly in memory (`Oxipng.optimize/2`).
-- 📁 **File compression**: In-place or copy optimization of PNG files on disk (`Oxipng.optimize_file/3`).
-- 🎨 **Raw pixel encoding**: Encode and optimize directly from raw pixel buffers (RGBA, RGB, Grayscale, Indexed) without an intermediate PNG encoder (`Oxipng.create_optimized_from_raw/6`).
-- ⚡ **Dirty CPU Schedulers**: Non-blocking integration with Erlang/Elixir runtime.
-- 🛠️ **Full options support**: Configurable optimization levels (0-6), metadata stripping, interlacing, custom filters, Zopfli DEFLATE algorithm, and reductions.
-
 ## Usage
 
-### In-Memory Optimization
+### PNG binaries
 
 ```elixir
-# Basic optimization with default level (preset 2)
-{:ok, optimized_png} = Oxipng.optimize(png_binary)
-
-# High compression with metadata stripped
-{:ok, optimized_png} = Oxipng.optimize(png_binary, level: 4, strip: :safe)
-
-# Bang variant (raises Oxipng.Error on failure)
-optimized_png = Oxipng.optimize!(png_binary, level: 6)
+{:ok, optimized} = Oxipng.optimize(png_binary)
+{:ok, optimized} = Oxipng.optimize(png_binary, level: 4, strip: :safe)
 ```
 
-### File Optimization
+### Files
 
 ```elixir
-# Optimize a file to a new destination
+# Write to a separate file
 {:ok, stats} = Oxipng.optimize_file("input.png", "output.png", level: 3)
-#=> {:ok, %{in_bytes: 40960, out_bytes: 28412}}
 
-# Optimize a file in-place
+# Optimize in place
 {:ok, stats} = Oxipng.optimize_file("photo.png", level: 2)
-
-# Bang variant
-stats = Oxipng.optimize_file!("input.png", "output.png")
 ```
 
-### Direct Raw Pixel Encoding
+File calls return `{:ok, %{in_bytes: input_size, out_bytes: output_size}}`.
+
+### Raw pixels
 
 ```elixir
-# Create an optimized PNG directly from raw RGBA pixel data
-raw_rgba = <<255, 0, 0, 255, 0, 255, 0, 255, ...>>
-{:ok, png_binary} = Oxipng.create_optimized_from_raw(raw_rgba, width, height, :rgba, 8)
+raw_rgba = <<255, 0, 0, 255, 0, 255, 0, 255>>
+{:ok, png} = Oxipng.create_optimized_from_raw(raw_rgba, 2, 1, :rgba, 8)
 ```
 
-Supported color types: `:rgba`, `:rgb`, `:grayscale`, `:grayscale_alpha`, and `{:indexed, palette_binary}`.
+Color types are `:rgba`, `:rgb`, `:grayscale`, `:grayscale_alpha`, and `{:indexed, palette_binary}`. Palettes contain RGBA entries of four bytes each.
+
+Grayscale supports bit depths 1, 2, 4, 8, and 16; indexed images support 1, 2, 4, and 8; other types support 8 and 16. Pack each row into whole bytes for depths below 8. Use big-endian samples for 16-bit data.
+
+Each function also has a `!` variant that returns the result directly or raises `Oxipng.Error`.
 
 ## Options
 
-All optimization functions accept options as a keyword list, map, or `%Oxipng.Options{}` struct:
+All three functions accept a keyword list, an atom-keyed map, or an `%Oxipng.Options{}` struct.
 
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `:level` | `0..6` | `2` | Optimization preset level (0 = fastest, 6 = maximum compression). |
-| `:interlace` | `boolean() \| nil \| :keep` | `nil` | `true` to enable Adam7 interlacing, `false` to disable, `nil`/`:keep` to preserve original. |
-| `:strip` | `:none \| :safe \| :all \| boolean() \| {:keep, list} \| {:strip, list}` | `:none` | Metadata chunks to strip. `:safe` strips non-display metadata; `:all` strips all metadata including color profiles. |
-| `:optimize_alpha` | `boolean()` | `false` | Allow transparency color values to be altered to improve compression. |
-| `:bit_depth_reduction` | `boolean()` | `true` | Attempt bit depth reduction. |
-| `:color_type_reduction` | `boolean()` | `true` | Attempt color type reduction. |
-| `:palette_reduction` | `boolean()` | `true` | Attempt palette reduction. |
-| `:grayscale_reduction` | `boolean()` | `true` | Attempt grayscale reduction. |
-| `:idat_recoding` | `boolean()` | `true` | Recode IDAT chunks. |
-| `:scale_16` | `boolean()` | `false` | Forcibly reduce 16-bit to 8-bit by scaling. |
-| `:deflater` | `tuple() \| atom()` | `nil` | `{:libdeflater, 0..12}`, `:zopfli`, or `{:zopfli, iterations}`. |
-| `:filters` | `[atom() \| tuple()]` | `nil` | Row filtering strategies (`:none`, `:sub`, `:up`, `:average`, `:paeth`, `:min_sum`, `:entropy`, `:bigrams`, `:big_ent`, `{:brute, lines, level}`). |
-| `:timeout` | `pos_integer() \| nil` | `nil` | Max optimization duration in milliseconds. |
-| `:max_decompressed_size` | `pos_integer() \| nil` | `nil` | Maximum decompressed IDAT size in bytes. |
-| `:force` | `boolean()` | `false` | Force writing output even if larger than input. |
-| `:fix_errors` | `boolean()` | `false` | Attempt to fix decoding errors rather than aborting. |
-| `:preserve_attrs` | `boolean()` | `false` | Preserve file timestamps and permissions when optimizing files. |
+| Option | Default | Description |
+|---|---|---|
+| `:level` | `2` | Optimization preset from 0 to 6. |
+| `:interlace` | `nil` | `true` requests Adam7 interlacing; `false` requests removal. `nil` or `:keep` preserves it. Set `force: true` to apply changes even without a size improvement. |
+| `:strip` | `:none` | Metadata stripping policy; see below. |
+| `:optimize_alpha` | `false` | Allow RGB values of fully transparent pixels to change. |
+| `:bit_depth_reduction` | `true` | Attempt bit depth reduction. |
+| `:color_type_reduction` | `true` | Attempt color type reduction. |
+| `:palette_reduction` | `true` | Attempt palette reduction. |
+| `:grayscale_reduction` | `true` | Attempt grayscale reduction. |
+| `:idat_recoding` | `true` | Recode IDAT chunks. Reductions can require recoding even when this is `false`. |
+| `:scale_16` | `false` | Allow lossy 16-bit to 8-bit scaling when bit depth reduction is enabled. |
+| `:deflater` | `nil` | Use the preset default, `{:libdeflater, 0..12}`, `:zopfli`, `{:zopfli, iterations}`, or `{:zopfli, iterations, without_improvement}`. |
+| `:filters` | `nil` | Use the preset default or a list of filters described below. |
+| `:fast_evaluation` | `nil` | Use the preset default, or set `true`/`false` to control fast filter evaluation. |
+| `:timeout` | `nil` | Soft budget in milliseconds. Skips further work after the deadline, but does not interrupt running compression. |
+| `:max_decompressed_size` | `nil` | Maximum decompressed input IDAT size in bytes. |
+| `:force` | `false` | Return or write output even if it is not smaller than the input. |
+| `:fix_errors` | `false` | Attempt to recover from decoding errors. |
+| `:preserve_attrs` | `false` | For files, preserve permissions and modification time, but not access time. |
+
+Stripping policies:
+
+- `:none` or `false`: disable optional metadata stripping.
+- `:safe` or `true`: use oxipng's allowlist (`cICP`, `iCCP`, `sRGB`, `pHYs`, `acTL`, `fcTL`, `fdAT`). This removes `gAMA` and `cHRM`, which can affect appearance.
+- `:all`: strip all optional metadata, including color profiles.
+- `{:keep, chunks}`: keep only the specified optional chunks.
+- `{:strip, chunks}`: strip the specified chunks.
+
+Chunk names are four-byte strings or atoms, such as `"tEXt"` or `:tEXt`.
+
+Filters are `:none`, `:sub`, `:up`, `:average`, `:paeth`, `:min_sum`, `:entropy`, `:bigrams`, `:big_ent`, or `{:brute, lines, level}`. Brute filtering takes a positive line count and a compression level from 1 to 12.
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+[MIT](LICENSE).

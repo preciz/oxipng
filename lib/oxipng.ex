@@ -1,17 +1,21 @@
 defmodule Oxipng do
   @moduledoc """
-  Elixir wrapper for [oxipng](https://github.com/oxipng/oxipng), a multithreaded
-  lossless PNG compression optimizer written in Rust.
+  Elixir bindings for [oxipng](https://github.com/oxipng/oxipng), a PNG optimizer
+  written in Rust.
 
-  Optimizations are run via Rustler NIFs on dirty CPU schedulers, ensuring high
-  performance without blocking the BEAM scheduler threads.
+  Calls are synchronous and run via Rustler NIFs on dirty CPU schedulers. The
+  calling process waits for the result while normal BEAM schedulers remain available.
+
+  Compression is lossless by default. `scale_16: true` reduces precision, and
+  `optimize_alpha: true` can change the RGB values of fully transparent pixels.
+  Stripping color metadata can affect how an image is displayed.
 
   ## Examples
 
       # Optimize PNG binary in memory
       {:ok, optimized_binary} = Oxipng.optimize(png_data)
 
-      # Optimize with options (e.g. max level, strip metadata)
+      # Choose a preset and metadata stripping policy
       {:ok, optimized_binary} = Oxipng.optimize(png_data, level: 4, strip: :safe)
 
       # Optimize using bang variant

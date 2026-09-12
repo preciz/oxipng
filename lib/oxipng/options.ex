@@ -4,24 +4,22 @@ defmodule Oxipng.Options do
 
   ## Available Options
 
-    * `:level` - Optimization level from `0` to `6` (default: `2`).
-      - `0`: Fewest optimizations (fastest).
-      - `1`: Basic optimizations.
-      - `2`: Default balance between compression and speed.
-      - `3`: Thorough optimization.
-      - `4`: High compression.
-      - `5`: Very high compression.
-      - `6`: Maximum compression (slowest).
+    * `:level` - Optimization preset from `0` to `6` (default: `2`).
 
     * `:interlace` - Interlacing mode:
       - `nil` or `:keep` (default) - Keep original interlacing.
-      - `true` - Force interlacing (Adam7).
-      - `false` - Disable interlacing.
+      - `true` - Request interlacing (Adam7).
+      - `false` - Request removal of interlacing.
+
+      Changes can be skipped if output is not smaller. Set `force: true` to apply
+      the requested interlacing even without a size improvement.
 
     * `:strip` - Metadata stripping:
-      - `:none` (default) - Keep all metadata.
-      - `:safe` or `true` - Strip all metadata that does not affect display.
-      - `:all` - Strip all metadata including color profiles.
+      - `:none` or `false` (default) - Disable optional metadata stripping.
+      - `:safe` or `true` - Use oxipng's metadata allowlist: `cICP`, `iCCP`, `sRGB`,
+        `pHYs`, `acTL`, `fcTL`, and `fdAT`. This removes `gAMA` and `cHRM` and can
+        affect image appearance.
+      - `:all` - Strip all optional metadata including color profiles.
       - `{:keep, list}` - Keep only specific chunk names (e.g. `{:keep, ["tEXt", "iTXt"]}`).
       - `{:strip, list}` - Strip specific chunk names (e.g. `{:strip, ["iCCP"]}`).
 
@@ -36,18 +34,23 @@ defmodule Oxipng.Options do
 
     * `:grayscale_reduction` - Attempt grayscale reduction (default: `true`).
 
-    * `:idat_recoding` - Recode IDAT chunks (default: `true`).
+    * `:idat_recoding` - Recode IDAT chunks (default: `true`). Reductions can require
+      recoding even when this is `false`.
 
-    * `:scale_16` - Forcibly reduce 16-bit to 8-bit by scaling (default: `false`).
+    * `:scale_16` - Allow lossy scaling from 16-bit to 8-bit when bit depth reduction
+      is enabled (default: `false`).
 
     * `:fast_evaluation` - Whether to use fast evaluation to pick the best filter
       (default: `nil`, uses preset default).
 
-    * `:force` - Force writing the output even if it is larger than input (default: `false`).
+    * `:force` - Return or write output even if it is not smaller than input
+      (default: `false`).
 
     * `:fix_errors` - Attempt to fix errors when decoding rather than failing (default: `false`).
 
-    * `:timeout` - Maximum optimization time in milliseconds (default: `nil`).
+    * `:timeout` - Soft optimization budget in milliseconds (default: `nil`).
+      Skips further work after the deadline; does not interrupt compression already
+      running, so the call can take longer.
 
     * `:max_decompressed_size` - Maximum decompressed size of input in bytes (default: `nil`).
 
@@ -61,8 +64,8 @@ defmodule Oxipng.Options do
       - Any combination of `:none`, `:sub`, `:up`, `:average`, `:paeth`,
         `:min_sum`, `:entropy`, `:bigrams`, `:big_ent`, or `{:brute, num_lines, level}`.
 
-    * `:preserve_attrs` - In file optimization, preserve file permissions and timestamps
-      (default: `false`).
+    * `:preserve_attrs` - In file optimization, preserve file permissions and
+      modification time, but not access time (default: `false`).
   """
 
   defstruct level: 2,

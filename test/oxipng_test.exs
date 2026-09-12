@@ -196,7 +196,7 @@ defmodule OxipngTest do
     end
 
     test "returns error on non-binary data" do
-      assert {:error, reason} = Oxipng.optimize(12345)
+      assert {:error, reason} = Oxipng.optimize(12_345)
       assert reason =~ "Expected binary PNG data"
     end
 
@@ -352,11 +352,11 @@ defmodule OxipngTest do
     end
 
     test "rejects non-map/list argument to Options.new" do
-      assert {:error, reason} = Oxipng.Options.new(12345)
+      assert {:error, reason} = Oxipng.Options.new(12_345)
       assert reason =~ "Options must be a keyword list or map"
 
       assert_raise ArgumentError, ~r/Options must be a keyword list or map/, fn ->
-        apply(Oxipng.Options, :new!, [12345])
+        Oxipng.Options.new!(12_345)
       end
     end
 

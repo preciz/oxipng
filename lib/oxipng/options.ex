@@ -151,11 +151,15 @@ defmodule Oxipng.Options do
   Same as `new/1` but raises `ArgumentError` on invalid options.
   """
   @spec new!(term()) :: t()
-  def new!(opts) do
+  def new!(opts) when is_list(opts) or is_map(opts) do
     case new(opts) do
       {:ok, validated} -> validated
       {:error, reason} -> raise ArgumentError, reason
     end
+  end
+
+  def new!(invalid) do
+    raise ArgumentError, "Options must be a keyword list or map, got: #{inspect(invalid)}"
   end
 
   @doc """
@@ -197,23 +201,47 @@ defmodule Oxipng.Options do
     }
   end
 
-  defp validate(%__MODULE__{level: level} = opts) do
+  defp validate(%__MODULE__{} = opts) do
+    with :ok <- validate_level(opts.level),
+         :ok <- validate_interlace(opts.interlace),
+         :ok <- validate_strip(opts.strip),
+         :ok <- validate_reductions(opts),
+         :ok <- validate_flags(opts),
+         :ok <- validate_sizes(opts),
+         :ok <- validate_deflater(opts.deflater),
+         :ok <- validate_filters(opts.filters) do
+      {:ok, opts}
+    end
+  end
+
+  defp validate_level(level) do
+    if is_integer(level) and level in 0..6 do
+      :ok
+    else
+      {:error, "Invalid :level option #{inspect(level)}. Expected an integer from 0 to 6"}
+    end
+  end
+
+  defp validate_interlace(interlace) do
+    if interlace in [nil, :keep, true, false] do
+      :ok
+    else
+      {:error,
+       "Invalid :interlace option #{inspect(interlace)}. Expected nil, :keep, true, or false"}
+    end
+  end
+
+  defp validate_strip(strip) do
+    if valid_strip?(strip) do
+      :ok
+    else
+      {:error,
+       "Invalid :strip option #{inspect(strip)}. Expected :none, :safe, :all, true, false, {:keep, [...]}, or {:strip, [...]}"}
+    end
+  end
+
+  defp validate_reductions(opts) do
     cond do
-      not (is_integer(level) and level in 0..6) ->
-        {:error, "Invalid :level option #{inspect(level)}. Expected an integer from 0 to 6"}
-
-      opts.interlace not in [nil, :keep, true, false] ->
-        {:error,
-         "Invalid :interlace option #{inspect(opts.interlace)}. Expected nil, :keep, true, or false"}
-
-      not valid_strip?(opts.strip) ->
-        {:error,
-         "Invalid :strip option #{inspect(opts.strip)}. Expected :none, :safe, :all, true, false, {:keep, [...]}, or {:strip, [...]}"}
-
-      not is_boolean(opts.optimize_alpha) ->
-        {:error,
-         "Invalid :optimize_alpha option #{inspect(opts.optimize_alpha)}. Expected a boolean"}
-
       not is_boolean(opts.bit_depth_reduction) ->
         {:error,
          "Invalid :bit_depth_reduction option #{inspect(opts.bit_depth_reduction)}. Expected a boolean"}
@@ -237,6 +265,17 @@ defmodule Oxipng.Options do
       not is_boolean(opts.scale_16) ->
         {:error, "Invalid :scale_16 option #{inspect(opts.scale_16)}. Expected a boolean"}
 
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_flags(opts) do
+    cond do
+      not is_boolean(opts.optimize_alpha) ->
+        {:error,
+         "Invalid :optimize_alpha option #{inspect(opts.optimize_alpha)}. Expected a boolean"}
+
       opts.fast_evaluation not in [nil, true, false] ->
         {:error,
          "Invalid :fast_evaluation option #{inspect(opts.fast_evaluation)}. Expected nil, true, or false"}
@@ -247,6 +286,17 @@ defmodule Oxipng.Options do
       not is_boolean(opts.fix_errors) ->
         {:error, "Invalid :fix_errors option #{inspect(opts.fix_errors)}. Expected a boolean"}
 
+      not is_boolean(opts.preserve_attrs) ->
+        {:error,
+         "Invalid :preserve_attrs option #{inspect(opts.preserve_attrs)}. Expected a boolean"}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_sizes(opts) do
+    cond do
       not is_nil(opts.timeout) and (not is_integer(opts.timeout) or opts.timeout <= 0) ->
         {:error,
          "Invalid :timeout option #{inspect(opts.timeout)}. Expected a positive integer in milliseconds or nil"}
@@ -256,19 +306,25 @@ defmodule Oxipng.Options do
         {:error,
          "Invalid :max_decompressed_size option #{inspect(opts.max_decompressed_size)}. Expected a positive integer in bytes or nil"}
 
-      not valid_deflater?(opts.deflater) ->
-        {:error,
-         "Invalid :deflater option #{inspect(opts.deflater)}. Expected :zopfli, {:libdeflater, 0..12}, {:zopfli, iterations}, or {:zopfli, iterations, wi}"}
-
-      not valid_filters?(opts.filters) ->
-        {:error, "Invalid :filters option #{inspect(opts.filters)}."}
-
-      not is_boolean(opts.preserve_attrs) ->
-        {:error,
-         "Invalid :preserve_attrs option #{inspect(opts.preserve_attrs)}. Expected a boolean"}
-
       true ->
-        {:ok, opts}
+        :ok
+    end
+  end
+
+  defp validate_deflater(deflater) do
+    if valid_deflater?(deflater) do
+      :ok
+    else
+      {:error,
+       "Invalid :deflater option #{inspect(deflater)}. Expected :zopfli, {:libdeflater, 0..12}, {:zopfli, iterations}, or {:zopfli, iterations, wi}"}
+    end
+  end
+
+  defp validate_filters(filters) do
+    if valid_filters?(filters) do
+      :ok
+    else
+      {:error, "Invalid :filters option #{inspect(filters)}."}
     end
   end
 

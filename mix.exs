@@ -8,7 +8,7 @@ defmodule Oxipng.MixProject do
     [
       app: :oxipng,
       version: @version,
-      elixir: "~> 1.15",
+      elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description: description(),
@@ -31,7 +31,8 @@ defmodule Oxipng.MixProject do
     [
       {:rustler, "~> 0.38.0", optional: true},
       {:rustler_precompiled, "~> 0.9.0"},
-      {:ex_doc, "~> 0.40.4", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.40.4", only: :dev, runtime: false},
+      {:credo, "~> 1.7.19", only: [:dev, :test], runtime: false}
     ]
   end
 

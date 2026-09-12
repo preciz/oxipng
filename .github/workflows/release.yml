@@ -75,7 +75,6 @@ jobs:
       contents: write
     env:
       MIX_ENV: test
-      MIX_BUILD_PATH: _build/precompiled
       OXIPNG_BUILD: "false"
       OXIPNG_BASE_URL: http://127.0.0.1:8765/
     steps:

@@ -179,6 +179,9 @@ fn parse_filters(term: Term) -> Result<IndexSet<FilterStrategy>, String> {
     for item in list {
         set.insert(parse_filter_strategy(item)?);
     }
+    if set.is_empty() {
+        return Err("At least one filter is required".into());
+    }
     Ok(set)
 }
 

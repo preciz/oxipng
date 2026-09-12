@@ -139,14 +139,25 @@ defmodule Oxipng.Options do
   Builds and validates an `%Oxipng.Options{}` struct from a keyword list or map.
   """
   @spec new(term()) :: {:ok, t()} | {:error, String.t()}
-  def new(%__MODULE__{} = opts), do: validate(opts)
+  def new(%__MODULE__{} = opts), do: new(Map.from_struct(opts))
 
-  def new(opts) when is_list(opts) or is_map(opts) do
-    struct(__MODULE__, opts)
-    |> validate()
+  def new(opts) when is_list(opts) do
+    if Keyword.keyword?(opts), do: new(Map.new(opts)), else: invalid_options(opts)
   end
 
-  def new(invalid) do
+  def new(opts) when is_map(opts) do
+    unknown = Map.keys(opts) -- Map.keys(Map.from_struct(%__MODULE__{}))
+
+    if unknown == [] do
+      validate(struct!(__MODULE__, opts))
+    else
+      {:error, "Unknown options: #{inspect(Enum.sort(unknown))}"}
+    end
+  end
+
+  def new(invalid), do: invalid_options(invalid)
+
+  defp invalid_options(invalid) do
     {:error, "Options must be a keyword list or map, got: #{inspect(invalid)}"}
   end
 
@@ -208,7 +219,6 @@ defmodule Oxipng.Options do
     with :ok <- validate_level(opts.level),
          :ok <- validate_interlace(opts.interlace),
          :ok <- validate_strip(opts.strip),
-         :ok <- validate_reductions(opts),
          :ok <- validate_flags(opts),
          :ok <- validate_sizes(opts),
          :ok <- validate_deflater(opts.deflater),
@@ -243,71 +253,38 @@ defmodule Oxipng.Options do
     end
   end
 
-  defp validate_reductions(opts) do
-    cond do
-      not is_boolean(opts.bit_depth_reduction) ->
-        {:error,
-         "Invalid :bit_depth_reduction option #{inspect(opts.bit_depth_reduction)}. Expected a boolean"}
-
-      not is_boolean(opts.color_type_reduction) ->
-        {:error,
-         "Invalid :color_type_reduction option #{inspect(opts.color_type_reduction)}. Expected a boolean"}
-
-      not is_boolean(opts.palette_reduction) ->
-        {:error,
-         "Invalid :palette_reduction option #{inspect(opts.palette_reduction)}. Expected a boolean"}
-
-      not is_boolean(opts.grayscale_reduction) ->
-        {:error,
-         "Invalid :grayscale_reduction option #{inspect(opts.grayscale_reduction)}. Expected a boolean"}
-
-      not is_boolean(opts.idat_recoding) ->
-        {:error,
-         "Invalid :idat_recoding option #{inspect(opts.idat_recoding)}. Expected a boolean"}
-
-      not is_boolean(opts.scale_16) ->
-        {:error, "Invalid :scale_16 option #{inspect(opts.scale_16)}. Expected a boolean"}
-
-      true ->
-        :ok
-    end
-  end
+  @boolean_options ~w(optimize_alpha bit_depth_reduction color_type_reduction
+    palette_reduction grayscale_reduction idat_recoding scale_16 force fix_errors preserve_attrs)a
+  @max_u64 18_446_744_073_709_551_615
 
   defp validate_flags(opts) do
-    cond do
-      not is_boolean(opts.optimize_alpha) ->
+    case Enum.find(@boolean_options, &(not is_boolean(Map.fetch!(opts, &1)))) do
+      nil ->
+        if opts.fast_evaluation in [nil, true, false] do
+          :ok
+        else
+          {:error,
+           "Invalid :fast_evaluation option #{inspect(opts.fast_evaluation)}. Expected nil or a boolean"}
+        end
+
+      key ->
         {:error,
-         "Invalid :optimize_alpha option #{inspect(opts.optimize_alpha)}. Expected a boolean"}
-
-      opts.fast_evaluation not in [nil, true, false] ->
-        {:error,
-         "Invalid :fast_evaluation option #{inspect(opts.fast_evaluation)}. Expected nil, true, or false"}
-
-      not is_boolean(opts.force) ->
-        {:error, "Invalid :force option #{inspect(opts.force)}. Expected a boolean"}
-
-      not is_boolean(opts.fix_errors) ->
-        {:error, "Invalid :fix_errors option #{inspect(opts.fix_errors)}. Expected a boolean"}
-
-      not is_boolean(opts.preserve_attrs) ->
-        {:error,
-         "Invalid :preserve_attrs option #{inspect(opts.preserve_attrs)}. Expected a boolean"}
-
-      true ->
-        :ok
+         "Invalid #{inspect(key)} option #{inspect(Map.fetch!(opts, key))}. Expected a boolean"}
     end
   end
 
   defp validate_sizes(opts) do
     cond do
-      not is_nil(opts.timeout) and (not is_integer(opts.timeout) or opts.timeout <= 0) ->
+      not is_nil(opts.timeout) and
+          (not is_integer(opts.timeout) or opts.timeout not in 1..@max_u64) ->
         {:error,
-         "Invalid :timeout option #{inspect(opts.timeout)}. Expected a positive integer in milliseconds or nil"}
+         "Invalid :timeout option #{inspect(opts.timeout)}. Expected an integer from 1 to #{@max_u64} in milliseconds or nil"}
 
       not is_nil(opts.max_decompressed_size) and
-          (not is_integer(opts.max_decompressed_size) or opts.max_decompressed_size <= 0) ->
+          (not is_integer(opts.max_decompressed_size) or
+             opts.max_decompressed_size not in 1..@max_u64) ->
         {:error,
-         "Invalid :max_decompressed_size option #{inspect(opts.max_decompressed_size)}. Expected a positive integer in bytes or nil"}
+         "Invalid :max_decompressed_size option #{inspect(opts.max_decompressed_size)}. Expected an integer from 1 to #{@max_u64} in bytes or nil"}
 
       true ->
         :ok
@@ -335,8 +312,11 @@ defmodule Oxipng.Options do
   defp valid_strip?(:safe), do: true
   defp valid_strip?(:all), do: true
   defp valid_strip?(b) when is_boolean(b), do: true
-  defp valid_strip?({:keep, list}) when is_list(list), do: Enum.all?(list, &valid_chunk_name?/1)
-  defp valid_strip?({:strip, list}) when is_list(list), do: Enum.all?(list, &valid_chunk_name?/1)
+  defp valid_strip?({:keep, list}) when is_list(list), do: valid_list?(list, &valid_chunk_name?/1)
+
+  defp valid_strip?({:strip, list}) when is_list(list),
+    do: valid_list?(list, &valid_chunk_name?/1)
+
   defp valid_strip?(_), do: false
 
   defp valid_chunk_name?(name) when is_binary(name), do: byte_size(name) == 4
@@ -346,18 +326,18 @@ defmodule Oxipng.Options do
   defp valid_deflater?(nil), do: true
   defp valid_deflater?(:zopfli), do: true
   defp valid_deflater?({:libdeflater, comp}) when is_integer(comp) and comp in 0..12, do: true
-  defp valid_deflater?({:zopfli, iters}) when is_integer(iters) and iters > 0, do: true
+  defp valid_deflater?({:zopfli, iters}) when is_integer(iters) and iters in 1..@max_u64, do: true
 
   defp valid_deflater?({:zopfli, iters, wi})
-       when is_integer(iters) and iters > 0 and is_integer(wi) and wi > 0,
+       when is_integer(iters) and iters in 1..@max_u64 and is_integer(wi) and wi in 1..@max_u64,
        do: true
 
   defp valid_deflater?(_), do: false
 
   defp valid_filters?(nil), do: true
 
-  defp valid_filters?(list) when is_list(list) do
-    Enum.all?(list, &valid_filter?/1)
+  defp valid_filters?([_ | _] = list) do
+    valid_list?(list, &valid_filter?/1)
   end
 
   defp valid_filters?(_), do: false
@@ -367,8 +347,15 @@ defmodule Oxipng.Options do
        do: true
 
   defp valid_filter?({:brute, lines, lvl})
-       when is_integer(lines) and lines > 0 and is_integer(lvl) and lvl in 1..12,
+       when is_integer(lines) and lines in 1..@max_u64 and is_integer(lvl) and lvl in 1..12,
        do: true
 
   defp valid_filter?(_), do: false
+
+  defp valid_list?([], _validator), do: true
+
+  defp valid_list?([head | tail], validator),
+    do: validator.(head) and valid_list?(tail, validator)
+
+  defp valid_list?(_, _validator), do: false
 end

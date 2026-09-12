@@ -65,7 +65,7 @@ Each function also has a `!` variant that returns the result directly or raises 
 
 ## Options
 
-All three functions accept a keyword list, an atom-keyed map, or an `%Oxipng.Options{}` struct.
+All three functions accept a keyword list, an atom-keyed map, or an `%Oxipng.Options{}` struct. Unknown keys and malformed options return errors.
 
 | Option | Default | Description |
 |---|---|---|
@@ -98,7 +98,7 @@ Stripping policies:
 
 Chunk names are four-byte strings or atoms, such as `"tEXt"` or `:tEXt`.
 
-Filters are `:none`, `:sub`, `:up`, `:average`, `:paeth`, `:min_sum`, `:entropy`, `:bigrams`, `:big_ent`, or `{:brute, lines, level}`. Brute filtering takes a positive line count and a compression level from 1 to 12.
+A custom filter list must be nonempty. Filters are `:none`, `:sub`, `:up`, `:average`, `:paeth`, `:min_sum`, `:entropy`, `:bigrams`, `:big_ent`, or `{:brute, lines, level}`. Brute filtering takes a positive line count and a compression level from 1 to 12.
 
 ## License
 

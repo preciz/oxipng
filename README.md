@@ -103,6 +103,29 @@ Chunk names are four-byte strings or atoms, such as `"tEXt"` or `:tEXt`.
 
 A custom filter list must be nonempty. Filters are `:none`, `:sub`, `:up`, `:average`, `:paeth`, `:min_sum`, `:entropy`, `:bigrams`, `:big_ent`, or `{:brute, lines, level}`. Brute filtering takes a positive line count and a compression level from 1 to 12.
 
+## Releasing
+
+The review fixes retain version 0.1.0 for replacement of the initial release.
+Until its rebuilt archives and checksums are published, compile this checkout
+with `OXIPNG_BUILD=true`.
+
+1. Keep the versions in `mix.exs` and `native/oxipng_nif/Cargo.toml` aligned and
+   commit the updated Cargo lockfile.
+2. Push the changes. The release workflow builds all archives, generates their
+   checksums, and tests the precompiled Linux artifact. Tag pushes publish the
+   verified archives, checksum manifest, and Hex package to GitHub Releases.
+   To replace the existing release from the updated branch, run the workflow
+   manually with `publish` enabled; it replaces assets for the project version.
+3. Copy the generated `checksum-Elixir.Oxipng.Native.exs` into the checkout before
+   building a package manually. Always use the checksums of the rebuilt archives.
+   The Hex archive produced by the workflow already contains the correct manifest.
+4. Replace the initial Hex package with `OXIPNG_BUILD=true mix hex.publish --replace`
+   while replacement is permitted. Hex publishing is a separate step from the
+   GitHub release workflow.
+
+The checked-in manifest is empty while the replacement is being prepared. Source
+builds work without it; precompiled installations require the generated manifest.
+
 ## License
 
 [MIT](LICENSE).

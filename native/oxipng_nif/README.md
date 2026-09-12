@@ -34,3 +34,8 @@ OXIPNG_BUILD=true OXIPNG_TEST_DECODER=/tmp/oxipng-decode mix test --only libpng
 Source builds require Rust 1.88 or newer and a C compiler. `Cargo.lock` is shipped
 with the package, and `build.rs` derives `Oxipng.version/0` from its resolved
 oxipng dependency. Update the lockfile intentionally when upgrading dependencies.
+
+The release workflow builds all targets, generates checksums from those exact
+archives, and runs the Elixir suite against the Linux precompiled artifact in a
+fresh build directory before publishing. It also produces the Hex package with
+the generated checksums. See the release instructions in the main README.

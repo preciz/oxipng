@@ -6,16 +6,19 @@ on:
       - main
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish or replace the verified assets for the current project version
+        type: boolean
+        default: false
 
 jobs:
   build_release:
     name: NIF ${{ matrix.nif }} - ${{ matrix.job.target }} (${{ matrix.job.os }})
     runs-on: ${{ matrix.job.os }}
     permissions:
-      contents: write
-      id-token: write
-      attestations: write
-      artifact-metadata: write
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -40,28 +43,13 @@ jobs:
         run: |
           echo "PROJECT_VERSION=$(sed -n 's/^  @version "\(.*\)"/\1/p' mix.exs | head -n1)" >> $GITHUB_ENV
 
-      - name: Check if release asset already exists
-        id: check_release
-        shell: bash
-        run: |
-          if [ "${{ startsWith(github.ref, 'refs/tags/') }}" = "true" ] && gh release view "${{ github.ref_name }}" --json assets -q '.assets[].name' 2>/dev/null | grep -q "${{ matrix.job.target }}"; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "Asset for ${{ matrix.job.target }} already exists in release ${{ github.ref_name }}. Skipping build."
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-        env:
-          GH_TOKEN: ${{ github.token }}
-
       - name: Install Rust toolchain
-        if: steps.check_release.outputs.exists != 'true'
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
           target: ${{ matrix.job.target }}
 
       - name: Build the project
-        if: steps.check_release.outputs.exists != 'true'
         id: build-crate
         uses: philss/rustler-precompiled-action@v1.1.5
         with:
@@ -71,17 +59,71 @@ jobs:
           nif-version: ${{ matrix.nif }}
           use-cross: ${{ matrix.job.use-cross }}
           project-dir: "native/oxipng_nif"
+          cargo-args: "--locked"
 
       - name: Artifact upload
-        if: steps.check_release.outputs.exists != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.build-crate.outputs.file-name }}
           path: ${{ steps.build-crate.outputs.file-path }}
 
-      - name: Publish archives and packages
+  verify_release:
+    name: Verify precompiled package
+    needs: build_release
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    env:
+      MIX_ENV: test
+      MIX_BUILD_PATH: _build/precompiled
+      OXIPNG_BUILD: "false"
+      OXIPNG_BASE_URL: http://127.0.0.1:8765/
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.18'
+          otp-version: '27.0'
+      - name: Determine release tag
+        id: release
+        env:
+          PUSHED_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+        run: |
+          elixir -e '[_, version] = Regex.run(~r/@version "([^"]+)"/, File.read!("mix.exs")); tag = "v" <> version; pushed = System.get_env("PUSHED_TAG", ""); if pushed != "" and pushed != tag, do: raise("Tag and project version differ"); File.write!(System.fetch_env!("GITHUB_OUTPUT"), "tag=#{tag}\n", [:append])'
+      - uses: actions/download-artifact@v4
+        with:
+          path: precompiled
+          merge-multiple: true
+      - name: Generate checksums for these exact archives
+        run: elixir scripts/checksums.exs precompiled --all
+      - name: Install dependencies
+        run: mix deps.get
+      - name: Test downloaded NIF without a source build
+        shell: bash
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 --directory precompiled &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          curl --retry 10 --retry-connrefused --retry-delay 1 --fail http://127.0.0.1:8765/ > /dev/null
+          mix test
+          mix run --no-compile -e 'Code.ensure_loaded!(Oxipng.Native); unless function_exported?(Oxipng.Native, :load_rustler_precompiled, 0), do: raise("Expected precompiled NIF")'
+      - name: Build package with verified checksums
+        run: mix hex.build
+      - name: Upload verified package and checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: verified-package
+          path: |
+            oxipng-*.tar
+            checksum-Elixir.Oxipng.Native.exs
+      - name: Publish verified archives and package
+        if: startsWith(github.ref, 'refs/tags/') || inputs.publish == true
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.release.outputs.tag }}
+          overwrite_files: true
+          fail_on_unmatched_files: true
           files: |
-            ${{ steps.build-crate.outputs.file-path }}
-        if: startsWith(github.ref, 'refs/tags/') && steps.check_release.outputs.exists != 'true'
+            precompiled/*.tar.gz
+            oxipng-*.tar
+            checksum-Elixir.Oxipng.Native.exs

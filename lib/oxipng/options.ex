@@ -346,7 +346,8 @@ defmodule Oxipng.Options do
   defp valid_deflater?({:zopfli, iters}) when is_integer(iters) and iters > 0, do: true
 
   defp valid_deflater?({:zopfli, iters, wi})
-       when is_integer(iters) and iters > 0 and is_integer(wi) and wi > 0, do: true
+       when is_integer(iters) and iters > 0 and is_integer(wi) and wi > 0,
+       do: true
 
   defp valid_deflater?(_), do: false
 
@@ -363,7 +364,8 @@ defmodule Oxipng.Options do
        do: true
 
   defp valid_filter?({:brute, lines, lvl})
-       when is_integer(lines) and lines > 0 and is_integer(lvl) and lvl in 1..12, do: true
+       when is_integer(lines) and lines > 0 and is_integer(lvl) and lvl in 1..12,
+       do: true
 
   defp valid_filter?(_), do: false
 end

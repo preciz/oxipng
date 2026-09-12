@@ -14,6 +14,8 @@ defmodule Oxipng.MixProject do
       description: description(),
       package: package(),
       docs: docs(),
+      source_url: @source_url,
+      homepage_url: @source_url,
       test_coverage: [
         summary: [threshold: 90],
         ignore_modules: [Oxipng.Native]
@@ -65,6 +67,7 @@ defmodule Oxipng.MixProject do
     [
       main: "Oxipng",
       source_url: @source_url,
+      homepage_url: @source_url,
       authors: ["Barna Kovacs"],
       extras: ["README.md"]
     ]

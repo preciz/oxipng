@@ -54,7 +54,6 @@ defmodule Oxipng.MixProject do
         "native/oxipng_nif/src",
         "native/oxipng_nif/Cargo.toml",
         "native/oxipng_nif/README.md",
-        "Cargo.toml",
         "mix.exs",
         "README.md",
         "LICENSE",

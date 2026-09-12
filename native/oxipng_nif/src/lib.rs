@@ -189,16 +189,18 @@ fn parse_deflater(term: Term) -> Result<Deflater, String> {
         }
     }
 
-    if let Ok((tag, comp)) = term.decode::<(rustler::Atom, u8)>() {
+    if let Ok((tag, value)) = term.decode::<(rustler::Atom, u64)>() {
         if tag == atoms::libdeflater() {
-            if comp > 12 {
+            if value > 12 {
                 return Err(format!(
-                    "libdeflater compression level must be between 0 and 12, got {comp}"
+                    "libdeflater compression level must be between 0 and 12, got {value}"
                 ));
             }
-            return Ok(Deflater::Libdeflater { compression: comp });
+            return Ok(Deflater::Libdeflater {
+                compression: value as u8,
+            });
         } else if tag == atoms::zopfli() {
-            let iterations = NonZeroU64::new(comp as u64)
+            let iterations = NonZeroU64::new(value)
                 .ok_or_else(|| "Zopfli iteration count must be greater than 0".to_string())?;
             return Ok(Deflater::Zopfli(ZopfliOptions {
                 iteration_count: iterations,

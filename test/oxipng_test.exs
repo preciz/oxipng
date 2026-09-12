@@ -163,6 +163,15 @@ defmodule OxipngTest do
       assert {:ok, _} = Oxipng.optimize(png, deflater: {:zopfli, 5, 2})
     end
 
+    test "accepts Zopfli iteration counts above 255", %{png: png} do
+      for iterations <- [256, 512] do
+        assert {:ok, optimized} = Oxipng.optimize(png, deflater: {:zopfli, iterations})
+
+        assert optimized ==
+                 Oxipng.optimize!(png, deflater: {:zopfli, iterations, iterations})
+      end
+    end
+
     test "optimizes with custom filters", %{png: png} do
       assert {:ok, _} = Oxipng.optimize(png, filters: [:sub, :up, :average, :paeth])
       assert {:ok, _} = Oxipng.optimize(png, filters: [:min_sum, :entropy, :bigrams, :big_ent])

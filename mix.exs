@@ -68,7 +68,7 @@ defmodule Oxipng.MixProject do
       source_url: @source_url,
       homepage_url: @source_url,
       authors: ["Barna Kovacs"],
-      extras: ["README.md"]
+      extras: ["README.md", "LICENSE"]
     ]
   end
 end

@@ -1,5 +1,7 @@
 # Oxipng
 
+[![Tests](https://github.com/preciz/oxipng/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/preciz/oxipng/actions/workflows/ci.yml?query=branch%3Amain)
+
 Elixir bindings for [oxipng](https://github.com/oxipng/oxipng), a PNG optimizer written in Rust.
 
 Optimize PNG binaries and files, or encode PNGs from raw pixels. Calls are synchronous and use [Rustler](https://github.com/rusterlium/rustler) NIFs on dirty CPU schedulers. The calling process waits while normal BEAM schedulers remain available.
